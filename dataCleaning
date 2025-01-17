@@ -1,0 +1,293 @@
+# ================================================================
+# Project: Enhancing Customer Behavior Analysis
+# Dataset: Online Retail (UCI Machine Learning Repository)
+# Author: Neel Shah
+# Date: [Insert Date]
+# Description: This script cleans and prepares the Online Retail dataset
+#              for further analysis by handling missing values, removing
+#              duplicates, correcting data errors, standardizing formats,
+#              handling outliers, and performing feature engineering.
+# ================================================================
+
+# -----------------------
+# 1. Setup Environment
+# -----------------------
+
+import sys
+import subprocess
+
+# List of required packages
+required_packages = ["pandas", "numpy", "matplotlib", "seaborn", "openpyxl"]
+
+# Function to install missing packages
+def install_packages(packages):
+    for pkg in packages:
+        try:
+            __import__(pkg)
+        except ImportError:
+            subprocess.check_call([sys.executable, "-m", "pip", "install", pkg])
+
+# Install required packages
+install_packages(required_packages)
+
+# Import libraries
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+import seaborn as sns
+from datetime import datetime
+
+# Set visualizations to display inline (if using Jupyter)
+# %matplotlib inline
+
+# -----------------------
+# 2. Import the Dataset
+# -----------------------
+
+# Define the file path using a raw string to handle backslashes correctly
+file_path = r"C:\Users\neelj\Downloads\online+retail\Online Retail.xlsx"
+
+# Read the dataset
+try:
+    retail_data = pd.read_excel(file_path)
+    print("Dataset loaded successfully.")
+except FileNotFoundError:
+    print(f"File not found at the specified path: {file_path}")
+    sys.exit(1)
+except Exception as e:
+    print(f"An error occurred while loading the dataset: {e}")
+    sys.exit(1)
+
+# Preview the first few rows
+print("First 5 rows of the dataset:")
+print(retail_data.head())
+
+# -----------------------
+# 3. Initial Data Exploration
+# -----------------------
+
+# Summary statistics
+print("\nSummary statistics:")
+print(retail_data.describe(include='all'))
+
+# Check data types
+print("\nData types:")
+print(retail_data.dtypes)
+
+# Check the number of rows and columns
+print("\nDataset dimensions:")
+print(retail_data.shape)
+
+# -----------------------
+# 4. Handle Missing Values
+# -----------------------
+
+# Check for missing values in each column
+missing_values = retail_data.isnull().sum()
+print("\nMissing values in each column:")
+print(missing_values)
+
+# Percentage of missing values
+missing_percentage = retail_data.isnull().mean() * 100
+print("\nPercentage of missing values in each column:")
+print(missing_percentage)
+
+# Handle missing CustomerID by removing rows with missing CustomerID
+retail_data_clean = retail_data.dropna(subset=['CustomerID'])
+
+# Verify removal
+missing_customerid = retail_data_clean['CustomerID'].isnull().sum()
+print(f"\nNumber of missing CustomerID after removal: {missing_customerid}")
+
+# Alternatively, you could impute or flag missing CustomerID
+# retail_data_clean['CustomerID'] = retail_data_clean['CustomerID'].fillna('Unknown')
+
+# -----------------------
+# 5. Remove Duplicates
+# -----------------------
+
+# Check for duplicate rows
+duplicate_count = retail_data_clean.duplicated().sum()
+print(f"\nNumber of duplicate rows: {duplicate_count}")
+
+# Remove duplicate rows
+retail_data_clean = retail_data_clean.drop_duplicates()
+
+# Verify removal
+duplicate_count_after = retail_data_clean.duplicated().sum()
+print(f"Number of duplicate rows after removal: {duplicate_count_after}")
+
+# -----------------------
+# 6. Correct Data Entry Errors
+# -----------------------
+
+# Remove transactions with negative Quantity or UnitPrice
+retail_data_clean = retail_data_clean[(retail_data_clean['Quantity'] > 0) & (retail_data_clean['UnitPrice'] > 0)]
+
+# Remove rows where InvoiceNo starts with 'C' indicating cancellations
+retail_data_clean = retail_data_clean[~retail_data_clean['InvoiceNo'].astype(str).str.startswith('C')]
+
+# Verify corrections
+print("\nSummary statistics after removing negative values and cancellations:")
+print(retail_data_clean[['Quantity', 'UnitPrice']].describe())
+
+# -----------------------
+# 7. Standardize Data Formats
+# -----------------------
+
+# Convert InvoiceDate to datetime format
+retail_data_clean['InvoiceDate'] = pd.to_datetime(retail_data_clean['InvoiceDate'], errors='coerce')
+
+# Check the conversion
+print("\nData types after date conversion:")
+print(retail_data_clean.dtypes)
+
+# Standardize Country names (e.g., title case)
+retail_data_clean['Country'] = retail_data_clean['Country'].str.title()
+
+# Verify unique countries
+unique_countries = sorted(retail_data_clean['Country'].unique())
+print("\nUnique countries in the dataset:")
+print(unique_countries)
+
+# -----------------------
+# 8. Handle Outliers
+# -----------------------
+
+# Visualize Quantity distribution
+plt.figure(figsize=(10, 5))
+sns.histplot(retail_data_clean['Quantity'], bins=50, kde=False, color='skyblue')
+plt.title('Distribution of Quantity Sold')
+plt.xlabel('Quantity')
+plt.ylabel('Frequency')
+plt.show()
+
+# Visualize UnitPrice distribution
+plt.figure(figsize=(10, 5))
+sns.histplot(retail_data_clean['UnitPrice'], bins=50, kde=False, color='salmon')
+plt.title('Distribution of Unit Price')
+plt.xlabel('Unit Price')
+plt.ylabel('Frequency')
+plt.show()
+
+# Remove extreme outliers (e.g., Quantity < 100, UnitPrice < 1000)
+retail_data_clean = retail_data_clean[(retail_data_clean['Quantity'] < 100) & (retail_data_clean['UnitPrice'] < 1000)]
+
+# Verify outlier removal
+print("\nSummary statistics after outlier removal:")
+print(retail_data_clean[['Quantity', 'UnitPrice']].describe())
+
+# -----------------------
+# 9. Feature Engineering
+# -----------------------
+
+# Calculate TotalPrice per transaction
+retail_data_clean['TotalPrice'] = retail_data_clean['Quantity'] * retail_data_clean['UnitPrice']
+
+# Extract date components
+retail_data_clean['Year'] = retail_data_clean['InvoiceDate'].dt.year
+retail_data_clean['Month'] = retail_data_clean['InvoiceDate'].dt.month_name()
+retail_data_clean['Day'] = retail_data_clean['InvoiceDate'].dt.day
+retail_data_clean['Weekday'] = retail_data_clean['InvoiceDate'].dt.day_name()
+retail_data_clean['Hour'] = retail_data_clean['InvoiceDate'].dt.hour
+
+# Create customer-level summary features
+customer_summary = retail_data_clean.groupby('CustomerID').agg(
+    TotalSpend=('TotalPrice', 'sum'),
+    AverageSpend=('TotalPrice', 'mean'),
+    PurchaseFrequency=('InvoiceNo', 'count'),
+    FirstPurchase=('InvoiceDate', 'min'),
+    LastPurchase=('InvoiceDate', 'max')
+).reset_index()
+
+# Calculate RecencyDays
+latest_date = retail_data_clean['InvoiceDate'].max()
+customer_summary['RecencyDays'] = (latest_date - customer_summary['LastPurchase']).dt.days
+
+# Merge customer summary back to main dataset
+retail_data_clean = retail_data_clean.merge(customer_summary, on='CustomerID', how='left')
+
+# Display the first few rows of the cleaned and enriched dataset
+print("\nFirst 5 rows of the cleaned and enriched dataset:")
+print(retail_data_clean.head())
+
+# -----------------------
+# 10. Validate Cleaned Data
+# -----------------------
+
+# Check for any remaining missing values
+total_missing = retail_data_clean.isnull().sum().sum()
+print(f"\nTotal missing values after cleaning: {total_missing}")
+
+# Summary statistics after cleaning
+print("\nSummary statistics of the cleaned dataset:")
+print(retail_data_clean.describe(include='all'))
+
+# Inspect a sample of cleaned data
+print("\nSample of cleaned data:")
+print(retail_data_clean.sample(5))
+
+# -----------------------
+# 11. Save the Cleaned Dataset
+# -----------------------
+
+# Define the output file path
+output_file = "Cleaned_Online_Retail.csv"
+
+# Save the cleaned data to a CSV file
+retail_data_clean.to_csv(output_file, index=False)
+
+# Confirmation message
+print(f"\nCleaned data has been saved to {output_file}")
+
+# -----------------------
+# 12. Optional: Visualize Before and After Cleaning
+# -----------------------
+
+# Note: To visualize before and after, you need to keep a copy of the original data.
+# Here, assume 'retail_data_original' is the original dataset before cleaning.
+
+# For demonstration, let's visualize Quantity distribution before and after cleaning.
+# Since we've already modified 'retail_data_clean', we'll reload the original data.
+
+# Reload original data for comparison
+try:
+    retail_data_original = pd.read_excel(file_path)
+    # Convert InvoiceDate to datetime
+    retail_data_original['InvoiceDate'] = pd.to_datetime(retail_data_original['InvoiceDate'], errors='coerce')
+    
+    # Remove duplicates and handle missing CustomerID as done earlier
+    retail_data_original = retail_data_original.drop_duplicates().dropna(subset=['CustomerID'])
+    
+    # Remove negative Quantity and UnitPrice
+    retail_data_original = retail_data_original[(retail_data_original['Quantity'] > 0) & (retail_data_original['UnitPrice'] > 0)]
+    
+    # Remove cancellations
+    retail_data_original = retail_data_original[~retail_data_original['InvoiceNo'].astype(str).str.startswith('C')]
+    
+    # Remove outliers
+    retail_data_original = retail_data_original[(retail_data_original['Quantity'] < 100) & (retail_data_original['UnitPrice'] < 1000)]
+except Exception as e:
+    print(f"An error occurred while reloading the original dataset for visualization: {e}")
+
+# Plot Quantity before cleaning
+plt.figure(figsize=(10, 5))
+sns.histplot(retail_data_original['Quantity'], bins=50, kde=False, color='lightgreen')
+plt.title('Quantity Distribution - Before Cleaning')
+plt.xlabel('Quantity')
+plt.ylabel('Frequency')
+plt.show()
+
+# Plot Quantity after cleaning
+plt.figure(figsize=(10, 5))
+sns.histplot(retail_data_clean['Quantity'], bins=50, kde=False, color='skyblue')
+plt.title('Quantity Distribution - After Cleaning')
+plt.xlabel('Quantity')
+plt.ylabel('Frequency')
+plt.show()
+
+# Similarly, you can create plots for UnitPrice or TotalPrice to showcase improvements
+
+# -----------------------
+# End of Script
+# -----------------------
