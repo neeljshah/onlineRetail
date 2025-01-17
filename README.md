@@ -23,7 +23,8 @@ The raw dataset contains inconsistencies such as missing values, duplicate entri
 - Enhanced features for better insights.
 
 ### 📊 **Visualization 1:** Data Cleaning Summary  
-![Figure_4](https://github.com/user-attachments/assets/869df959-de12-4f3e-b2db-3f40da5b4dd3)
+![Figure_4](https://github.com/user-attachments/assets/34795b18-bc81-4ca1-bf68-531616843577)
+![Figure_5](https://github.com/user-attachments/assets/105677b9-141a-4909-ab44-4b968a0dda36)
 
 ---
 
