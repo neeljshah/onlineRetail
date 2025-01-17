@@ -1,0 +1,89 @@
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+import seaborn as sns
+from datetime import datetime
+
+# ✅ Force Matplotlib to pop out plots
+plt.switch_backend('tkAgg')  # Forces each plot into a pop-out window
+
+# Set visualization style
+sns.set(style="whitegrid")
+
+# Load dataset
+file_path = r"C:\Users\neelj\coding\onlineRetail\Cleaned_Online_Retail.csv"
+retail_data = pd.read_csv(file_path)
+
+# Ensure InvoiceDate is in datetime format
+retail_data['InvoiceDate'] = pd.to_datetime(retail_data['InvoiceDate'], errors='coerce')
+retail_data = retail_data.dropna(subset=['InvoiceDate'])
+retail_data = retail_data.set_index('InvoiceDate')
+
+# -----------------------
+# 1. Monthly Sales Trends
+# -----------------------
+sales_monthly = retail_data.resample('M')['TotalPrice'].sum().reset_index()
+
+plt.figure(figsize=(14, 7))
+sns.lineplot(data=sales_monthly, x='InvoiceDate', y='TotalPrice', marker='o', color='green')
+plt.title('Monthly Sales Trends')
+plt.xlabel('Month')
+plt.ylabel('Total Sales ($)')
+plt.xticks(rotation=45)
+plt.tight_layout()
+plt.show(block=True)  # ✅ Keeps the window open until manually closed
+
+# -----------------------
+# 2. Top 10 Best-Selling Products
+# -----------------------
+top_10_products = retail_data.groupby('Description')['Quantity'].sum().sort_values(ascending=False).head(10).reset_index()
+
+plt.figure(figsize=(12, 6))
+sns.barplot(data=top_10_products, x='Quantity', y='Description', palette='viridis')
+plt.title('Top 10 Best-Selling Products')
+plt.xlabel('Quantity Sold')
+plt.ylabel('Product Description')
+plt.tight_layout()
+plt.show(block=True)
+
+# -----------------------
+# 3. Sales by Country
+# -----------------------
+sales_by_country = retail_data.groupby('Country')['TotalPrice'].sum().sort_values(ascending=False).reset_index()
+
+plt.figure(figsize=(14, 8))
+sns.barplot(data=sales_by_country, x='TotalPrice', y='Country', palette='magma')
+plt.title('Total Sales by Country')
+plt.xlabel('Total Sales ($)')
+plt.ylabel('Country')
+plt.tight_layout()
+plt.show(block=True)
+
+# -----------------------
+# 4. Customer RFM Analysis
+# -----------------------
+latest_date = retail_data.index.max()
+rfm = retail_data.groupby('CustomerID').agg({
+    'TotalPrice': 'sum',
+    'Quantity': 'sum',
+    'InvoiceDate': lambda x: (latest_date - x.max()).days
+}).rename(columns={'TotalPrice': 'Monetary', 'Quantity': 'Frequency', 'InvoiceDate': 'Recency'}).reset_index()
+
+plt.figure(figsize=(8, 6))
+sns.heatmap(rfm[['Recency', 'Frequency', 'Monetary']].corr(), annot=True, cmap='coolwarm')
+plt.title('Correlation Between RFM Metrics')
+plt.tight_layout()
+plt.show(block=True)
+
+# -----------------------
+# 5. Customer Lifetime Value (CLV) Analysis
+# -----------------------
+rfm['CLV'] = rfm['Monetary'] * rfm['Frequency']
+
+plt.figure(figsize=(10, 6))
+sns.histplot(rfm['CLV'], bins=30, kde=True, color='cyan')
+plt.title('Customer Lifetime Value (CLV) Distribution')
+plt.xlabel('CLV ($)')
+plt.ylabel('Number of Customers')
+plt.tight_layout()
+plt.show(block=True)
